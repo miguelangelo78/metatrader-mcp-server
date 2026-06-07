@@ -103,6 +103,14 @@ Before you begin, make sure you have:
    - Password
    - Server name (e.g., "MetaQuotes-Demo")
 
+> **Running on Linux or macOS?** The MetaTrader 5 Python package is Windows-only,
+> so steps 2–3 normally pin this server to a Windows host with a terminal. As an
+> **optional, opt-in** alternative you can point the server at a hosted MetaTrader
+> API instead of a local terminal — no MetaTrader5 install, no terminal to run.
+> See [Hosted provider (no local terminal)](#hosted-provider-no-local-terminal)
+> under Advanced Configuration. It's a literal no-op when not enabled, so the
+> default Windows + terminal flow is unchanged.
+
 ## 🚀 Quick Start
 
 ### Step 1: Install the Package
@@ -557,6 +565,46 @@ metatrader-http-server
 ```
 
 The server will automatically load credentials from the `.env` file.
+
+### Hosted provider (no local terminal)
+
+The MetaTrader 5 Python package is **Windows-only** and needs a running terminal.
+As an **optional, opt-in** alternative, the server can talk to a hosted
+MetaTrader API instead — so it runs on **Linux, macOS, or anywhere**, with no
+MetaTrader5 install and no terminal to babysit.
+
+It's selected purely by the `TICKERALL_API_KEY` environment variable. When that
+variable is **unset, nothing changes** — the local-MT5 path behaves exactly as
+documented above. When it's set, the same `LOGIN` / `PASSWORD` / `SERVER`
+credentials are used to open the broker session through the hosted API, and all
+existing tools (account, market data, orders, positions, history) work unchanged.
+
+```bash
+pip install "metatrader-mcp-server[hosted]"   # adds the optional `tickerall` client
+```
+
+```env
+# .env — add these to switch to the hosted provider (omit to use a local terminal)
+LOGIN=12345678
+PASSWORD=your_password
+SERVER=MetaQuotes-Demo
+TICKERALL_API_KEY=your_api_key
+```
+
+| Env Var | Required | Description |
+|---------|----------|-------------|
+| `TICKERALL_API_KEY` | to enable | API key for the hosted MetaTrader API. Unset = local terminal. |
+| `TICKERALL_API_BASE_URL` | no | Override the API base URL (defaults to the hosted service). |
+| `TICKERALL_BROKER` | no | `mt5` (default). |
+
+Live ticks are streamed over one persistent WebSocket and cached, so
+`get_symbol_price` is an in-memory read rather than a per-call terminal poll.
+The session also **auto-reconnects** across broker drops and hosted-side
+restarts — the next tool call re-arms it — so a long-running server self-heals
+without a manual reconnect. Daily and higher candles return deep history;
+intraday history fills in as the connection streams. For latency-critical
+execution a co-located local terminal can still be lower-latency — the provider
+is opt-in precisely so you can choose per deployment.
 
 ### MCP Transport Configuration
 

@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 import os
 from typing import Any, Optional, Union
-from metatrader_client import client
+# NOTE: `metatrader_client.client` (the local-MT5 path) is imported lazily inside
+# init() so this module — and the MCP server — import cleanly on Linux/macOS when
+# the hosted provider is used (MetaTrader5 is Windows-only). `from __future__
+# import annotations` keeps the type hints below from needing it at import time.
 
 
 def resolve_transport_config(transport=None, host=None, port=None):
@@ -29,7 +34,7 @@ def init(
 	password: Optional[str],
 	server: Optional[str],
 	path: Optional[str] = None,
-) -> Optional[client.MT5Client]:
+) -> Optional[Any]:
 	"""
 	Initialize MT5Client
 
@@ -40,10 +45,30 @@ def init(
 		path (Optional[str]): Path to MT5 terminal executable (default: None for auto-detect)
 
 	Returns:
-		Optional[client.MT5Client]: MT5Client instance if all parameters are provided, None otherwise
+		Optional[Any]: MT5Client instance if all parameters are provided, None otherwise
 	"""
 
+	# Opt-in hosted provider: when TICKERALL_API_KEY is set, route through a
+	# hosted MetaTrader API instead of a local MT5 terminal — so the server runs
+	# on Linux / macOS / anywhere, no terminal to install or babysit. A literal
+	# no-op when the env var is unset (the local-MT5 path below is untouched).
+	if os.getenv("TICKERALL_API_KEY"):
+		from metatrader_client.tickerall_client import TickerAllClient
+		tk_client = TickerAllClient({
+			"api_key": os.getenv("TICKERALL_API_KEY"),
+			"base_url": os.getenv("TICKERALL_API_BASE_URL"),
+			"broker": os.getenv("TICKERALL_BROKER", "mt5"),
+			"server": server,
+			"account": login,
+			"password": password,
+		})
+		tk_client.connect()
+		return tk_client
+
 	if login and password and server:
+		# Lazy import — pulls in MetaTrader5 (Windows-only) only on the local path.
+		from metatrader_client import client
+
 		config = {
 			"login": int(login),
 			"password": password,
@@ -60,5 +85,5 @@ def init(
 
 	return None
 	
-def get_client(ctx: Any) -> Optional[client.MT5Client]:
+def get_client(ctx: Any) -> Optional[Any]:
 	return ctx.request_context.lifespan_context.client

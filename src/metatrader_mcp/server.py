@@ -86,6 +86,12 @@ def get_symbol_price(ctx: Context, symbol_name: str) -> dict:
 	return client.market.get_symbol_price(symbol_name=symbol_name)
 
 @mcp.tool()
+def get_symbol_info(ctx: Context, symbol_name: str) -> dict:
+	"""Get the full symbol specification: digits, point, volume min/max/step, contract size, tick size, tick value, trade mode, plus the latest bid/ask. Needed to size orders and convert a stop distance to risk currency."""
+	client = get_client(ctx)
+	return client.market.get_symbol_info(symbol_name=symbol_name)
+
+@mcp.tool()
 def get_all_symbols(ctx: Context) -> list:
 	"""Get a list of all available market symbols."""
 	client = get_client(ctx)
@@ -122,6 +128,8 @@ def get_positions_by_id(ctx: Context, id: Union[int, str]) -> list:
 	"""Get open positions by ID."""
 	client = get_client(ctx)
 	df = client.order.get_positions_by_id(id=id)
+	if hasattr(df, 'empty') and df.empty:
+		return f"No open position with id {id}."
 	return df.to_csv() if hasattr(df, 'to_csv') else str(df)
 
 @mcp.tool()
@@ -143,6 +151,8 @@ def get_pending_orders_by_id(ctx: Context, id: Union[int, str]) -> list:
 	"""Get pending orders by id."""
 	client = get_client(ctx)
 	df = client.order.get_pending_orders_by_id(id=id)
+	if hasattr(df, 'empty') and df.empty:
+		return f"No pending order with id {id}."
 	return df.to_csv() if hasattr(df, 'to_csv') else str(df)
 
 @mcp.tool()
